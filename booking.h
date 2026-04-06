@@ -9,10 +9,10 @@
 #define SLOTS_PER_ROOM 4
 
 typedef struct {
-    int id;
-    char user[MAX_NAME_LEN];
-    int room_id;
-    int active;
+  int id;
+  char user[MAX_NAME_LEN];
+  int room_id;
+  int active;
 } Booking;
 
 /* Inizializza l'archivio delle prenotazioni */
@@ -33,6 +33,13 @@ int add_booking(const char *user, int room_id);
    - -1 se non trovata
 */
 int remove_booking(int booking_id);
+
+/* Aggiorna il nome utente di una prenotazione.
+   Ritorna:
+   - 0 se aggiornata correttamente
+   - -1 se non trovata
+*/
+int update_booking_user(int booking_id, const char *new_user);
 
 /* Conta quanti posti liberi ci sono in totale */
 int count_available_slots(void);
