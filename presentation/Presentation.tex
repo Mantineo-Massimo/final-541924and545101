@@ -34,10 +34,7 @@
     \titlepage
 \end{frame}
 
-% ==========================================
-% 1. PROBLEM STATEMENT
-% ==========================================
-\begin{frame}{Problem Statement: Obiettivi del Progetto}
+\begin{frame}{1. Problem Statement: Obiettivi del Progetto}
     \begin{block}{Il Problema}
         Implementare un server per la gestione di prenotazioni in grado di servire simultaneamente molteplici client, garantendo la coerenza dei dati e riducendo l'overhead computazionale di sistema.
     \end{block}
@@ -52,40 +49,35 @@
     \end{itemize}
 \end{frame}
 
-% ==========================================
-% 2. STATO DELL'ARTE (Creata ex-novo)
-% ==========================================
-\begin{frame}{Stato dell'Arte: Architetture Server a Confronto}
-    Per contestualizzare la scelta progettuale, è utile confrontare i principali paradigmi per la gestione della concorrenza nei server web:
+\begin{frame}{2. Stato dell'Arte: Modelli di Concorrenza}
+    L'evoluzione della gestione dei socket ha portato a diversi modelli architetturali:
     
-    \vspace{0.2cm}
     \begin{itemize}
-        \item \textbf{Multi-Processo:}
-        Ad ogni richiesta viene associato un nuovo processo tramite \texttt{fork()}. Garantisce isolamento totale, ma presenta un elevato overhead di memoria e tempi di \textit{context switch} pesanti.
-        
-        \item \textbf{Modello "Thread-per-Connection":}
-        Ad ogni nuova connessione accettata, il server lancia un nuovo thread dedicato tramite \texttt{pthreadCreate()}. Sebbene sia più leggero del processo \texttt{fork()}, il consumo di memoria cresce linearmente con il numero di client (ogni thread richiede il proprio stack). Inoltre, la creazione e distruzione continua di thread genera un elevato overhead, portando il sistema al collasso in caso di attacchi o carichi improvvisi.
-        
-        \item \textbf{Multi-Threading a Pool (Il nostro approccio):}
-        Alloca un numero fisso di Thread (\textit{Worker}) all'avvio. Condivide lo stesso spazio di indirizzamento (memoria condivisa), riducendo drasticamente il consumo di RAM rispetto ai processi, delegando la gestione delle code e la mutua esclusione alle primitive POSIX (Semafori e Mutex).
+        \item \textbf{Processo per Connessione (\texttt{fork()})}: Semplice ma inefficiente (alto overhead di memoria e context switching).
+        \item \textbf{Thread per Connessione}: Più leggero ma soffre del problema \textit{C10k} (esaurimento stack dei thread).
+        \item \textbf{Event-Driven (\texttt{epoll/select})}: Estremamente performante ma complesso da implementare (I/O asincrono).
+        \item \textbf{Thread Pool (Nostra Scelta)}: Il giusto compromesso tra prestazioni e semplicità gestendo un numero fisso di thread worker pronti all'uso.
     \end{itemize}
+    
+    \begin{block}{Framework Moderni}
+        Linguaggi come Go o Node.js automatizzano questa gestione tramite \textit{Goroutines} o \textit{Event Loops}, ma il C/POSIX permette una comprensione profonda della gestione delle risorse del kernel.
+    \end{block}
 \end{frame}
 
-% ==========================================
-% 3. METODOLOGIA ED IMPLEMENTAZIONE
-% ==========================================
-\begin{frame}{Metodologia: Lo Stack Tecnologico}
+\begin{frame}{3. Metodologia: Lo Stack Tecnologico}
     Il progetto è stato sviluppato e validato utilizzando esclusivamente strumenti standard e open-source:
     
     \begin{itemize}
+        \item \textbf{Linguaggio}: C99 con estensioni POSIX.
         \item \textbf{Build System}: \texttt{Makefile} per l'automazione della compilazione.
+        \item \textbf{Debugging}: \texttt{GDB} e \texttt{Valgrind} (per l'analisi dei leak di memoria).
         \item \textbf{Networking}: \texttt{Wireshark} per l'analisi dei pacchetti HTTP/TCP.
         \item \textbf{Benchmarking}: \texttt{Apache Bench (ab)} per lo stress test concorrente.
         \item \textbf{Version Control}: \texttt{Git} per la gestione del codice sorgente.
     \end{itemize}
 \end{frame}
 
-\begin{frame}{Metodologia: Architettura a Thread Pool}
+\begin{frame}{4. Metodologia: Architettura a Thread Pool}
     \centering
     \resizebox{0.7\textwidth}{!}{
     \begin{tikzpicture}[
@@ -121,7 +113,19 @@
     }
 \end{frame}
 
-\begin{frame}{Metodologia: Sincronizzazione e Flusso}
+\begin{frame}{5. Metodologia: Handshake TCP}
+    \centering
+    \includegraphics[width=0.7\textwidth, trim=0 80 0 70, clip]{../assets/wireshark_handshake.png}
+    \\[0.1cm]
+    {\scriptsize \textbf{Figura:} Tracciato Wireshark del Three-Way Handshake TCP.}
+    
+    \vspace{0.2cm}
+    \begin{block}{Autenticazione}
+        Le rotte sensibili richiedono l'header \texttt{Authorization: Basic} (token Base64).
+    \end{block}
+\end{frame}
+
+\begin{frame}{6. Metodologia: Sincronizzazione e Flusso}
     L'utilizzo dei \textbf{Semafori} (\texttt{sem\_t}) permette di gestire la comunicazione tra thread evitando il \textit{busy-waiting} (polling attivo).
     
     \begin{itemize}
@@ -131,27 +135,53 @@
                 \item \texttt{sem\_wait()}: Decrementa il contatore; se è zero, il thread dorme.
                 \item \texttt{sem\_post()}: Incrementa il contatore e risveglia un thread dormiente.
             \end{itemize}
+        \item \textbf{Efficienza}: Rispetto ad un approccio basato su \texttt{fork()}, il pool di thread riduce drasticamente l'overhead di \textit{Context Switching}.
     \end{itemize}
 \end{frame}
 
+\begin{frame}[fragile]{7. Implementazione: Strutture Dati}
+    L'architettura poggia su due strutture fondamentali per la gestione dello stato e della sincronizzazione.
+    
+\begin{lstlisting}[style=cstyle]
+typedef struct job {
+    void (*function)(void*); // Funzione da eseguire
+    void* arg;               // Argomento (es. socket descriptor)
+    struct job* next;        // Puntatore per coda FIFO
+} job_t;
 
-\begin{frame}{Implementazione: Ottimizzazioni Architetturali}
-    \begin{block}{Sincronizzazione Centralizzata (Mutex)}
-        L'architettura previene attivamente \textit{race conditions} e corruzione dei dati in memoria.
-        L'impiego rigoroso del \textbf{Mutex} (\texttt{pthread\_mutex\_t}) garantisce che l'accesso alla memoria condivisa avvenga in totale mutua esclusione per ogni Worker Thread, assicurando l'assoluta coerenza transazionale sia in lettura che in scrittura.
-    \end{block}
-    
-    \vspace{0.3cm}
-    
-    \begin{block}{De-frammentazione della Memoria Dinamica}
-        La rimozione logica di una prenotazione (\texttt{DELETE}) espone al rischio di frammentazione del vettore.
-        L'implementazione impiega uno \textbf{shift a sinistra} progressivo tramite un \textbf{ciclo iterativo for} all'interno dell'area protetta, garantendo la ricompattazione continua dell'array dinamico senza librerie esterne.
-    \end{block}
+typedef struct {
+    pthread_t* threads;       // Array di worker thread
+    job_t* queue_head;        // Testa della coda (estrazione)
+    job_t* queue_tail;        // Coda della lista (inserimento)
+    pthread_mutex_t queue_mutex; // Protezione della coda
+    sem_t queue_sem;          // Conteggio task pronti
+    int shutdown;             // Flag di terminazione controllata
+} thread_pool_t;
+\end{lstlisting}
 \end{frame}
 
+\begin{frame}[fragile]{8. Implementazione: Inizializzazione Pool}
+    All'avvio, il server alloca le risorse di sincronizzazione e lancia i thread worker.
+    
+\begin{lstlisting}[style=cstyle]
+thread_pool_t* thread_pool_init(int num_threads) {
+    thread_pool_t* pool = malloc(sizeof(thread_pool_t));
+    
+    // Inizializzazione primitiva di sincronizzazione
+    pthread_mutex_init(&pool->queue_mutex, NULL);
+    sem_init(&pool->queue_sem, 0, 0); // Semaforo parte da 0
 
+    pool->threads = malloc(num_threads * sizeof(pthread_t));
+    for (int i = 0; i < num_threads; i++) {
+        // Ogni thread esegue la funzione 'thread_worker'
+        pthread_create(&pool->threads[i], NULL, thread_worker, (void*)pool);
+    }
+    return pool;
+}
+\end{lstlisting}
+\end{frame}
 
-\begin{frame}[fragile]{Implementazione: Pattern Produttore-Consumatore}
+\begin{frame}[fragile]{9. Implementazione: Pattern Produttore-Consumatore}
     \begin{columns}
         \begin{column}{0.48\textwidth}
             \textbf{Dispatcher (Produttore)}
@@ -193,7 +223,43 @@ while (1) {
     \end{columns}
 \end{frame}
 
-\begin{frame}[fragile]{Implementazione: Thread Safety sui Dati}
+\begin{frame}[fragile]{10. Implementazione: Shutdown Sicuro}
+    La chiusura del server richiede un coordinamento per evitare \textit{deadlock} o thread rimasti in attesa sul semaforo.
+    
+\begin{lstlisting}[style=cstyle]
+void thread_pool_destroy(thread_pool_t* pool) {
+    pthread_mutex_lock(&pool->queue_mutex);
+    pool->shutdown = 1; // Segnale di stop
+    pthread_mutex_unlock(&pool->queue_mutex);
+
+    // Svegliamo tutti i thread in attesa su sem_wait()
+    for (int i = 0; i < pool->num_threads; i++) {
+        sem_post(&pool->queue_sem);
+    }
+
+    // Join per attendere la terminazione effettiva
+    for (int i = 0; i < pool->num_threads; i++) {
+        pthread_join(pool->threads[i], NULL);
+    }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{11. Metodologia: Mutual Exclusion}
+    Il \textbf{Mutex} (\textit{Mutual Exclusion}) garantisce che una determinata porzione di codice, detta \textbf{Sezione Critica}, sia eseguita da un solo thread alla volta.
+    
+    \begin{itemize}
+        \item \textbf{Prevenzione Data Race}: Impedisce a più thread di modificare contemporaneamente la stessa variabile (es. il contatore delle prenotazioni).
+        \item \textbf{Atomicità}: Le operazioni sul database in-memory (scrittura, aggiornamento, shift) devono apparire come singole unità indivisibili.
+        \item \textbf{Isolamento}: Ogni worker thread ha una visione coerente della memoria mentre detiene il lock.
+    \end{itemize}
+    
+    \begin{block}{Regola d'oro}
+        La durata del lock deve essere ridotta al minimo per non serializzare l'esecuzione del server.
+    \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{12. Implementazione: Thread Safety}
     L'accesso alla risorsa condivisa (il vettore delle prenotazioni) è protetto da un Mutex per garantire la coerenza dei dati durante operazioni concorrenti.
     
 \begin{lstlisting}[style=cstyle]
@@ -215,7 +281,7 @@ int rm_create(resource_manager_t* rm, const char* room, ...) {
 \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{Implementazione: Eliminazione Atomica}
+\begin{frame}[fragile]{13. Implementazione: Eliminazione Atomica}
     Le operazioni logiche complesse, come la rimozione con ricompattazione (shift), devono avvenire integralmente sotto lock.
     
 \begin{lstlisting}[style=cstyle]
@@ -238,29 +304,27 @@ int rm_delete(resource_manager_t* rm, int id) {
 \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{Implementazione: Shutdown Sicuro}
-    La chiusura del server richiede un coordinamento per evitare \textit{deadlock} o thread rimasti in attesa sul semaforo.
+\begin{frame}[fragile]{14. Implementazione: Analisi del Protocollo (Parsing)}
+    Il server deve interpretare i byte grezzi trasformandoli in una struttura logica (\textit{Request}).
     
 \begin{lstlisting}[style=cstyle]
-void thread_pool_destroy(thread_pool_t* pool) {
-    pthread_mutex_lock(&pool->queue_mutex);
-    pool->shutdown = 1; // Segnale di stop
-    pthread_mutex_unlock(&pool->queue_mutex);
-
-    // Svegliamo tutti i thread in attesa su sem_wait()
-    for (int i = 0; i < pool->num_threads; i++) {
-        sem_post(&pool->queue_sem);
+int parse_http_request(const char* raw, http_request_t* req) {
+    // 1. Ricerca fine della riga (\r\n)
+    const char* line_end = strstr(raw, "\r\n");
+    // 2. Estrazione Metodo e URI
+    sscanf(raw, "%s %s", req->method, req->uri);
+    // 3. Individuazione del Body (dopo \r\n\r\n)
+    const char* body_start = strstr(raw, "\r\n\r\n");
+    if (body_start) {
+        strncpy(req->body, body_start + 4, MAX_BODY_LEN - 1);
     }
-
-    // Join per attendere la terminazione effettiva
-    for (int i = 0; i < pool->num_threads; i++) {
-        pthread_join(pool->threads[i], NULL);
-    }
+    return 0;
 }
 \end{lstlisting}
+    \textit{Nota: L'uso di strstr e sscanf garantisce il rispetto dello standard RFC 7230.}
 \end{frame}
 
-\begin{frame}{Implementazione: Specifiche API REST}
+\begin{frame}{15. Implementazione: Specifiche API REST}
     \centering
     \renewcommand{\arraystretch}{1.2}
     \resizebox{1.0\textwidth}{!}{
@@ -277,9 +341,60 @@ void thread_pool_destroy(thread_pool_t* pool) {
     }
 \end{frame}
 
+\begin{frame}{16. Implementazione: Gestione degli Errori}
+    Il server gestisce le eccezioni e i casi limite restituendo codici di stato appropriati:
+    
+    \centering
+    \renewcommand{\arraystretch}{1.1}
+    \resizebox{0.9\textwidth}{!}{
+    \begin{tabular}{@{}lll@{}}
+        \toprule
+        \textbf{Categoria} & \textbf{Codice} & \textbf{Causa nel Backend} \\
+        \midrule
+        \textbf{Client Error} & \texttt{400 Bad Request} & Errore di parsing (es. parametri mancanti) \\
+        & \texttt{401 Unauthorized} & Token Base64 mancante o errato \\
+        & \texttt{404 Not Found} & L'ID richiesto non esiste nell'array \\
+        & \texttt{413 Payload Too Large} & Dimensione richiesta superiore al buffer \\
+        \midrule
+        \textbf{Server Error} & \texttt{500 Internal Error} & Fallimento \texttt{malloc()} o errore interno \\
+        & \texttt{503 Unavailable} & Job Queue satura (Server sovraccarico) \\
+        \bottomrule
+    \end{tabular}
+    }
+\end{frame}
 
+\begin{frame}{17. Implementazione: Ottimizzazioni Architetturali}
+    \begin{columns}
+        \begin{column}{0.5\textwidth}
+            \centering
+            \includegraphics[width=1.0\textwidth, trim=0 80 0 70, clip]{../assets/wireshark_post.png}
+            \\[0.1cm]
+            {\tiny POST Request e Basic Auth}
+        \end{column}
+        \begin{column}{0.5\textwidth}
+            \centering
+            \includegraphics[width=1.0\textwidth, trim=0 80 0 70, clip]{../assets/wireshark_get_json.png}
+            \\[0.1cm]
+            {\tiny Risposta 200 OK (JSON)}
+        \end{column}
+    \end{columns}
+\end{frame}
 
-\begin{frame}{Implementazione: Sicurezza e Controlli}
+\begin{frame}{14. Implementazione: Ottimizzazioni Architetturali}
+    \begin{block}{Sincronizzazione Centralizzata (Mutex)}
+        L'architettura previene attivamente \textit{race conditions} e corruzione dei dati in memoria.
+        L'impiego rigoroso del \textbf{Mutex} (\texttt{pthread\_mutex\_t}) garantisce che l'accesso alla memoria condivisa avvenga in totale mutua esclusione per ogni Worker Thread, assicurando l'assoluta coerenza transazionale sia in lettura che in scrittura.
+    \end{block}
+    
+    \vspace{0.3cm}
+    
+    \begin{block}{De-frammentazione della Memoria Dinamica}
+        Poiché il C è sprovvisto di Garbage Collector, la rimozione logica di una prenotazione (\texttt{DELETE}) espone al rischio di frammentazione del vettore.
+        L'implementazione impiega uno \textbf{shift a sinistra} progressivo tramite un \textbf{ciclo iterativo for} all'interno dell'area protetta, garantendo la ricompattazione continua dell'array dinamico senza librerie esterne.
+    \end{block}
+\end{frame}
+
+\begin{frame}{18. Implementazione: Sicurezza}
     \textbf{Mitigazione delle criticità intrinseche in ambiente C/POSIX:}
     \begin{itemize}
         \item \textbf{Socket Leaks:} Dismissione sicura \texttt{close(fd)}.
@@ -287,44 +402,35 @@ void thread_pool_destroy(thread_pool_t* pool) {
         \item \textbf{Interruzione SIGPIPE:} Flag \texttt{MSG\_NOSIGNAL}.
     \end{itemize}
     \centering
-    \includegraphics[width=0.75\textwidth, trim=0 80 0 70, clip]{wireshark_413.png}
+    \includegraphics[width=0.75\textwidth, trim=0 80 0 70, clip]{../assets/wireshark_413.png}
     \\[0.1cm]
     {\scriptsize \textbf{Figura:} Validazione Errore 413 Payload Too Large}
 \end{frame}
 
-\begin{frame}{Implementazione: Networking e Handshake TCP}
-    \centering
-    \includegraphics[width=0.7\textwidth, trim=0 80 0 70, clip]{wireshark_handshake.png}
-    \\[0.1cm]
-    {\scriptsize \textbf{Figura:} Tracciato Wireshark del Three-Way Handshake TCP.}
+\begin{frame}[fragile]{19. Qualità: Robustezza e Memory Management}
+    Il progetto adotta rigorosi standard di sicurezza per prevenire vulnerabilità tipiche del linguaggio C, validati tramite l'uso di \textbf{Valgrind}.
     
-    \vspace{0.2cm}
-    \begin{block}{Autenticazione}
-        Le rotte sensibili richiedono l'header \texttt{Authorization: Basic} (token Base64).
+    \begin{block}{Risultati Analisi Dinamica (Memcheck)}
+        {\scriptsize
+        \begin{verbatim}
+==16601== LEAK SUMMARY:
+==16601==    definitely lost: 0 bytes in 0 blocks
+==16601==    indirectly lost: 0 bytes in 0 blocks
+==16601==    possibly lost: 2,720 bytes in 10 blocks
+==16601==    still reachable: 40,064 bytes in 4 blocks
+==16601== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0)
+        \end{verbatim}
+        }
     \end{block}
+    
+    \begin{itemize}
+        \item \textbf{Definitely Lost: 0 bytes}: Conferma l'assenza di perdite di memoria nel cuore dell'implementazione.
+        \item \textbf{Still Reachable}: Memoria ancora allocata dovuta all'interruzione forzata del server (\texttt{SIGINT}) prima del cleanup finale.
+        \item \textbf{Sicurezza}: Utilizzo sistematico di \texttt{strncpy/snprintf} e gestione del segnale \texttt{SIGPIPE}.
+    \end{itemize}
 \end{frame}
 
-\begin{frame}{Implementazione: Analisi Traffico HTTP}
-    \begin{columns}
-        \begin{column}{0.5\textwidth}
-            \centering
-            \includegraphics[width=1.0\textwidth, trim=0 80 0 70, clip]{wireshark_post.png}
-            \\[0.1cm]
-            {\tiny POST Request e Basic Auth}
-        \end{column}
-        \begin{column}{0.5\textwidth}
-            \centering
-            \includegraphics[width=1.0\textwidth, trim=0 80 0 70, clip]{wireshark_get_json.png}
-            \\[0.1cm]
-            {\tiny Risposta 200 OK (JSON)}
-        \end{column}
-    \end{columns}
-\end{frame}
-
-% ==========================================
-% 4. RISULTATI
-% ==========================================
-\begin{frame}{Risultati: Load Testing e Performance}
+\begin{frame}{20. Risultati: Load Testing e Performance}
     Il progetto è stato collaudato sfruttando lo strumento standard \textbf{Apache Bench (ab)}.
     La simulazione ha previsto: \textbf{10.000 richieste totali} con un livello di concorrenza di \textbf{100 client paralleli}.
     
@@ -349,10 +455,7 @@ void thread_pool_destroy(thread_pool_t* pool) {
     \end{columns}
 \end{frame}
 
-% ==========================================
-% 5. CONCLUSIONE E SVILUPPI FUTURI
-% ==========================================
-\begin{frame}{Conclusione e Sviluppi Futuri}
+\begin{frame}{21. Conclusione e Sviluppi Futuri}
     L'implementazione in linguaggio C di un Thread Pool associato a socket BSD si è dimostrata una soluzione \textit{memory-safe} ad altissime prestazioni per la costruzione di architetture HTTP concorrenti.
 
     \vspace{0.4cm}
