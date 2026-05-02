@@ -1,4 +1,4 @@
-# 🚀 Server HTTP Concorrente - Prenotazione Aule Studio
+# Server HTTP Concorrente - Prenotazione Aule Studio
 
 Implementazione avanzata di un server HTTP concorrente progettato per la gestione ad alte prestazioni delle prenotazioni di aule studio. Realizzato per il corso di **Laboratorio di Reti e Sistemi Distribuiti** (A.A. 2024/2025) presso l'Università degli Studi di Messina.
 
@@ -130,5 +130,3 @@ I risultati dettagliati e l'analisi del throughput sono disponibili nella [Relaz
 Per un approfondimento sui dettagli implementativi e l'analisi delle performance:
 - **[Relazione Tecnica](report/Report.pdf)**: Spiegazione dettagliata dell'architettura e dei test.
 - **[Slide di Presentazione](presentation/Presentation.pdf)**: Panoramica visiva del progetto.
-
----
