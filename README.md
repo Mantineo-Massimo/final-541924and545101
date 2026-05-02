@@ -1,21 +1,16 @@
 # 🚀 Server HTTP Concorrente - Prenotazione Aule Studio
 
-[![C Standard](https://img.shields.io/badge/C-C99%2FC11-blue.svg)](https://en.wikipedia.org/wiki/C11_(C_standard_revision))
-[![POSIX](https://img.shields.io/badge/Standard-POSIX-orange.svg)](https://en.wikipedia.org/wiki/POSIX)
-[![Status](https://img.shields.io/badge/Status-Completato-brightgreen.svg)]()
-[![License](https://img.shields.io/badge/License-Accademico-lightgrey.svg)]()
-
 Implementazione avanzata di un server HTTP concorrente progettato per la gestione ad alte prestazioni delle prenotazioni di aule studio. Realizzato per il corso di **Laboratorio di Reti e Sistemi Distribuiti** (A.A. 2024/2025) presso l'Università degli Studi di Messina.
 
 ---
 
-## 👥 Autori
+##  Autori
 *   **Massimo Mantineo** - *Matricola: 541924*
 *   **Pierluca Tino Castorina** - *Matricola: 545101*
 
 ---
 
-## 🛠️ Caratteristiche Architetturali
+##  Caratteristiche Architetturali
 
 | Caratteristica | Implementazione |
 | :--- | :--- |
@@ -27,8 +22,7 @@ Implementazione avanzata di un server HTTP concorrente progettato per la gestion
 
 ---
 
-## 📂 Struttura del Progetto
-
+##  Struttura del Progetto
 ```bash
 .
 ├── server_http/       # Codice sorgente core in C
@@ -44,7 +38,7 @@ Implementazione avanzata di un server HTTP concorrente progettato per la gestion
 
 ---
 
-## 🚀 Iniziare
+##  Iniziare
 
 ### Prerequisiti
 - Compilatore GCC
@@ -71,7 +65,7 @@ Implementazione avanzata di un server HTTP concorrente progettato per la gestion
 
 ---
 
-## 🔌 Endpoint API e Utilizzo
+##  Endpoint API e Utilizzo
 
 Il server implementa un'API RESTful con **Basic Authentication** (`admin:password`).
 
@@ -82,7 +76,7 @@ Il server implementa un'API RESTful con **Basic Authentication** (`admin:passwor
 | **PUT** | `/reservations/{id}` | Aggiorna una prenotazione esistente | `room`, `student`, `time` |
 | **DELETE** | `/reservations/{id}` | Elimina una prenotazione | N/A |
 
-### 🛠️ Esempi con `curl`
+###  Esempi con `curl`
 
 **Lista tutte le prenotazioni:**
 ```bash
@@ -110,7 +104,7 @@ curl -u admin:password -X DELETE http://localhost:8080/reservations/0
 
 ---
 
-## 🧪 Test Automatizzati
+##  Test Automatizzati
 
 È fornito uno script di test per verificare rapidamente le funzionalità del server:
 
@@ -120,7 +114,7 @@ curl -u admin:password -X DELETE http://localhost:8080/reservations/0
    ./test.sh
    ```
 
-## 📊 Performance e Stress Test
+##  Performance e Stress Test
 Il server è stato ampiamente testato sotto carico utilizzando **Apache Bench (ab)** per garantirne la stabilità.
 
 **Esempio di comando per il test:**
@@ -132,7 +126,7 @@ I risultati dettagliati e l'analisi del throughput sono disponibili nella [Relaz
 
 ---
 
-## 📜 Documentazione
+##  Documentazione
 Per un approfondimento sui dettagli implementativi e l'analisi delle performance:
 - **[Relazione Tecnica](report/Report.pdf)**: Spiegazione dettagliata dell'architettura e dei test.
 - **[Slide di Presentazione](presentation/Presentation.pdf)**: Panoramica visiva del progetto.
