@@ -1,34 +1,140 @@
-# Server HTTP Concorrente per Prenotazione Aule Studio
+# 🚀 Server HTTP Concorrente - Prenotazione Aule Studio
 
-Progetto per il corso di **Laboratorio di Reti e Sistemi Distribuiti** (Anno Accademico 2024/2025) - Università degli Studi di Messina.
+[![C Standard](https://img.shields.io/badge/C-C99%2FC11-blue.svg)](https://en.wikipedia.org/wiki/C11_(C_standard_revision))
+[![POSIX](https://img.shields.io/badge/Standard-POSIX-orange.svg)](https://en.wikipedia.org/wiki/POSIX)
+[![Status](https://img.shields.io/badge/Status-Completato-brightgreen.svg)]()
+[![License](https://img.shields.io/badge/License-Accademico-lightgrey.svg)]()
 
-**Autori**: 
-- Massimo Mantineo (Matricola: 541924)
-- Pierluca Tino Castorina (Matricola: 545101)
+Implementazione avanzata di un server HTTP concorrente progettato per la gestione ad alte prestazioni delle prenotazioni di aule studio. Realizzato per il corso di **Laboratorio di Reti e Sistemi Distribuiti** (A.A. 2024/2025) presso l'Università degli Studi di Messina.
 
-## Descrizione
-Il progetto consiste nella realizzazione di un server HTTP concorrente scritto in C, progettato per gestire un sistema di prenotazione di aule studio. L'architettura è basata sul pattern **Thread Pool**, che garantisce elevate prestazioni limitando il sovraccarico causato dai frequenti cambi di contesto. La sincronizzazione delle risorse condivise è gestita in modo robusto tramite *Mutex* e *Semafori*.
+---
 
-## Struttura del Repository
-- `server_http/`: Codice sorgente in C dell'applicativo (gestione socket, parsing HTTP, API REST e Thread Pool).
-- `report/`: Relazione tecnica dettagliata scritta in LaTeX.
-- `presentation/`: Presentazione in LaTeX (Beamer) utilizzata per esporre il progetto.
-- `assets/`: Immagini e diagrammi architettonici.
+## 👥 Autori
+*   **Massimo Mantineo** - *Matricola: 541924*
+*   **Pierluca Tino Castorina** - *Matricola: 545101*
 
-## Come compilare ed eseguire il server
-1. Entrare nella cartella del server:
+---
+
+## 🛠️ Caratteristiche Architetturali
+
+| Caratteristica | Implementazione |
+| :--- | :--- |
+| **Modello di Concorrenza** | Architettura **Thread Pool** ad alte prestazioni |
+| **Strategia di I/O** | I/O sincrono con worker thread pre-allocati |
+| **Sincronizzazione** | Protezione robusta delle risorse tramite **POSIX Mutex** e **Semafori** |
+| **Architettura API** | Principi RESTful per la gestione delle prenotazioni |
+| **Sicurezza Memoria** | Gestione rigorosa della memoria e dei segnali (SIGINT/SIGTERM) |
+
+---
+
+## 📂 Struttura del Progetto
+
+```bash
+.
+├── server_http/       # Codice sorgente core in C
+│   ├── src/           # Implementazione (.c)
+│   ├── include/       # Header (.h)
+│   ├── obj/           # Oggetti compilati (.o)
+│   ├── bin/           # Binari eseguibili
+│   └── test.sh        # Script di test automatizzato
+├── report/            # Relazione tecnica (LaTeX)
+├── presentation/      # Slide di presentazione (LaTeX Beamer)
+└── assets/            # Diagrammi e asset architetturali
+```
+
+---
+
+## 🚀 Iniziare
+
+### Prerequisiti
+- Compilatore GCC
+- Ambiente conforme a POSIX (Linux/macOS)
+- Utility `make`
+
+### Installazione ed Esecuzione
+
+1. **Entra nella directory del server:**
    ```bash
    cd server_http
    ```
-2. Compilare il progetto tramite il `Makefile` fornito:
+
+2. **Compila il progetto:**
    ```bash
    make
    ```
-3. Avviare l'eseguibile:
+
+3. **Avvia l'eseguibile:**
    ```bash
    ./bin/server
    ```
-   Il server si porrà in ascolto all'indirizzo `http://localhost:8080`.
+   *Il server sarà disponibile all'indirizzo:* `http://localhost:8080`
 
-## Documentazione
-Tutta la documentazione tecnica relativa alle scelte architetturali, allo stress test (tramite Apache Bench) e alle API è disponibile nei file `Report.pdf` e `Presentation.pdf` situati nelle rispettive cartelle.
+---
+
+## 🔌 Endpoint API e Utilizzo
+
+Il server implementa un'API RESTful con **Basic Authentication** (`admin:password`).
+
+| Metodo | Endpoint | Descrizione | Payload (Form Data) |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/reservations` | Lista tutte le prenotazioni | N/A |
+| **POST** | `/reservations` | Crea una nuova prenotazione | `room`, `student`, `time` |
+| **PUT** | `/reservations/{id}` | Aggiorna una prenotazione esistente | `room`, `student`, `time` |
+| **DELETE** | `/reservations/{id}` | Elimina una prenotazione | N/A |
+
+### 🛠️ Esempi con `curl`
+
+**Lista tutte le prenotazioni:**
+```bash
+curl -u admin:password http://localhost:8080/reservations
+```
+
+**Crea una nuova prenotazione:**
+```bash
+curl -u admin:password -X POST \
+     -d "room=AulaA&student=Massimo&time=10-12" \
+     http://localhost:8080/reservations
+```
+
+**Aggiorna una prenotazione (es. ID 0):**
+```bash
+curl -u admin:password -X PUT \
+     -d "room=AulaB&student=Pierluca&time=14-16" \
+     http://localhost:8080/reservations/0
+```
+
+**Elimina una prenotazione (es. ID 0):**
+```bash
+curl -u admin:password -X DELETE http://localhost:8080/reservations/0
+```
+
+---
+
+## 🧪 Test Automatizzati
+
+È fornito uno script di test per verificare rapidamente le funzionalità del server:
+
+1. **Esegui il test automatizzato:**
+   ```bash
+   chmod +x test.sh
+   ./test.sh
+   ```
+
+## 📊 Performance e Stress Test
+Il server è stato ampiamente testato sotto carico utilizzando **Apache Bench (ab)** per garantirne la stabilità.
+
+**Esempio di comando per il test:**
+```bash
+ab -n 1000 -c 100 http://localhost:8080/
+```
+
+I risultati dettagliati e l'analisi del throughput sono disponibili nella [Relazione Tecnica](report/Report.pdf).
+
+---
+
+## 📜 Documentazione
+Per un approfondimento sui dettagli implementativi e l'analisi delle performance:
+- **[Relazione Tecnica](report/Report.pdf)**: Spiegazione dettagliata dell'architettura e dei test.
+- **[Slide di Presentazione](presentation/Presentation.pdf)**: Panoramica visiva del progetto.
+
+---
