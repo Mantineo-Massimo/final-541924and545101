@@ -24,8 +24,8 @@ static void* thread_worker(void* arg) {
         job_t* job = pool->queue_head; 
         if (job) { // Se c'è effettivamente un lavoro
             pool->queue_head = job->next; // La testa diventa l'elemento successivo
-            if (pool->queue_head == NULL) { // Se la lista ora è vuota...
-                pool->queue_tail = NULL;    // ...resettiamo anche la coda
+            if (pool->queue_head == NULL) { 
+                pool->queue_tail = NULL;    
             }
         }
         pthread_mutex_unlock(&pool->queue_mutex); // Rilasciamo il mutex subito dopo l'estrazione per far accedere gli altri

@@ -18,8 +18,8 @@ int rm_create(resource_manager_t* rm, const char* room, const char* student, con
     
     // Se abbiamo raggiunto il limite massimo (100), sblocchiamo il mutex e usciamo restituendo errore
     if (rm->count >= MAX_RESERVATIONS) {
-        pthread_mutex_unlock(&rm->mutex); // Mai dimenticare di sbloccare prima di un return anticipato!
-        return -1;
+        pthread_mutex_unlock(&rm->mutex); // Sblocchiamo prima di uscire per evitare di lasciare il database bloccato
+        return -1; // Indica che non possiamo accettare più prenotazioni (restituirà 503 Service Unavailable)
     }
     
     int id = rm->next_id++; // Salva il valore attuale e poi incrementa il contatore per il prossimo utilizzo 
